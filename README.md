@@ -26,6 +26,13 @@ playwright install chromium
 python -m cc0_model_radar --browser --limit 25 --output reports/cc0-candidates.csv
 ```
 
+To use an installed Chromium-based browser such as Opera instead of the
+Playwright-managed Chromium binary:
+
+```bash
+python -m cc0_model_radar --browser --browser-path "$(command -v opera)" --limit 25
+```
+
 For troubleshooting a browser run, keep candidates that failed license
 verification instead of dropping them:
 
