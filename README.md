@@ -17,6 +17,20 @@ pip install -r requirements.txt
 python -m cc0_model_radar --limit 25 --output reports/cc0-candidates.csv
 ```
 
+When MakerWorld blocks plain HTTP requests, use browser mode. The first setup
+also installs the Chromium browser used by Playwright:
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+python -m cc0_model_radar --browser --limit 25 --output reports/cc0-candidates.csv
+```
+
+Browser mode uses a fresh, unauthenticated browser session. It loads public
+pages only, does not solve CAPTCHAs, log in, download model files, or upload
+anything. Keep the delay conservative and stop if MakerWorld presents a block
+page.
+
 To use saved MakerWorld HTML while developing or when a network blocks MakerWorld:
 
 ```bash
