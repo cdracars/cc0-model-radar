@@ -33,6 +33,12 @@ Playwright-managed Chromium binary:
 python -m cc0_model_radar --browser --browser-path "$(command -v opera)" --limit 25
 ```
 
+Use a visible browser window when a site blocks headless automation:
+
+```bash
+python -m cc0_model_radar --browser --headed --browser-path "$(command -v opera)" --limit 25
+```
+
 For troubleshooting a browser run, keep candidates that failed license
 verification instead of dropping them:
 
