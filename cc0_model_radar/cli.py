@@ -31,14 +31,15 @@ def main() -> None:
     parser.add_argument("--markdown", default=None)
     args = parser.parse_args()
 
-    fetcher = (
+    makerworld_fetcher = (
         BrowserFetcher(delay=args.delay, browser_path=args.browser_path)
         if args.browser
         else Fetcher(delay=args.delay)
     )
+    printables_fetcher = Fetcher(delay=args.delay)
     try:
         models = discover(
-            fetcher,
+            makerworld_fetcher,
             limit=args.limit,
             html_path=args.makerworld_html,
             include_unverified=args.include_unverified,
@@ -48,7 +49,7 @@ def main() -> None:
     candidates = []
     for model in models:
         match = (
-            find_match(fetcher, model)
+            find_match(printables_fetcher, model)
             if model.license_name.lower().startswith("cc0")
             else PrintablesMatch(status="unknown", evidence=model.verification_evidence)
         )
@@ -58,7 +59,7 @@ def main() -> None:
     write_markdown(candidates, markdown)
     print(f"Wrote {len(candidates)} candidates to {args.output}")
     print(f"Wrote review report to {markdown}")
-    close = getattr(fetcher, "close", None)
+    close = getattr(makerworld_fetcher, "close", None)
     if close:
         close()
 
