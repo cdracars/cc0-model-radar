@@ -23,6 +23,11 @@ def main() -> None:
         help="path to an installed Chromium-based browser such as Opera",
     )
     parser.add_argument(
+        "--headed",
+        action="store_true",
+        help="show the browser window instead of running headless",
+    )
+    parser.add_argument(
         "--include-unverified",
         action="store_true",
         help="include models that could not be verified, with the reason in the report",
@@ -32,11 +37,11 @@ def main() -> None:
     args = parser.parse_args()
 
     makerworld_fetcher = (
-        BrowserFetcher(delay=args.delay, browser_path=args.browser_path)
+        BrowserFetcher(delay=args.delay, browser_path=args.browser_path, headless=not args.headed)
         if args.browser
         else Fetcher(delay=args.delay)
     )
-    printables_fetcher = Fetcher(delay=args.delay)
+    printables_fetcher = makerworld_fetcher if args.browser else Fetcher(delay=args.delay)
     try:
         models = discover(
             makerworld_fetcher,
