@@ -1,5 +1,6 @@
+import html as html_lib
 import re
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -9,6 +10,7 @@ from .text import similarity
 
 
 BASE = "https://www.printables.com"
+SEARCH_FALLBACK_BASE = "https://html.duckduckgo.com/html/"
 
 
 def _results(html: str) -> list[tuple[str, str]]:
@@ -35,6 +37,10 @@ def find_match(fetcher: Fetcher, model: MakerWorldModel) -> PrintablesMatch:
     try:
         html = fetcher.get(url)
     except FetchError as exc:
+        fallback = find_search_fallback(fetcher, model)
+        if fallback.status != "unknown":
+            fallback.evidence = f"Direct Printables lookup failed ({exc}); {fallback.evidence}"
+            return fallback
         return PrintablesMatch(status="unknown", evidence=str(exc))
     candidates = _results(html)
     if not candidates:
@@ -48,4 +54,57 @@ def find_match(fetcher: Fetcher, model: MakerWorldModel) -> PrintablesMatch:
     else:
         status, confidence = "not_found", "low"
     return PrintablesMatch(status=status, confidence=confidence, title=title, url=result_url, evidence=url)
+
+
+def _fallback_results(page: str) -> list[tuple[str, str]]:
+    soup = BeautifulSoup(page, "html.parser")
+    results = []
+    seen = set()
+    for link in soup.select("a.result__a"):
+        href = html_lib.unescape(link.get("href", ""))
+        parsed = urlparse(href)
+        if parsed.netloc.endswith("duckduckgo.com"):
+            href = parse_qs(parsed.query).get("uddg", [""])[0]
+        if not re.search(r"https?://(?:www\.)?printables\.com/model/\d+", href):
+            continue
+        title = " ".join(link.get_text(" ", strip=True).split())
+        key = (href.split("#", 1)[0], title)
+        if key not in seen:
+            seen.add(key)
+            results.append(key)
+    return results
+
+
+def find_search_fallback(fetcher: Fetcher, model: MakerWorldModel) -> PrintablesMatch:
+    query = quote(f'site:printables.com/model/ "{model.title}"')
+    url = f"{SEARCH_FALLBACK_BASE}?q={query}"
+    try:
+        page = fetcher.get(url)
+    except FetchError as exc:
+        return PrintablesMatch(status="unknown", evidence=f"search fallback failed: {exc}")
+    candidates = _fallback_results(page)
+    if not candidates:
+        return PrintablesMatch(
+            status="likely_not_found",
+            confidence="low",
+            evidence=f"No indexed Printables model found; manual review recommended: {url}",
+        )
+    scored = sorted(
+        ((similarity(model.title, title), title, result_url) for result_url, title in candidates),
+        reverse=True,
+    )
+    score, title, result_url = scored[0]
+    if score >= 0.85:
+        status, confidence = "possible_match", "high"
+    elif score >= 0.55:
+        status, confidence = "possible_match", "medium"
+    else:
+        status, confidence = "likely_not_found", "low"
+    return PrintablesMatch(
+        status=status,
+        confidence=confidence,
+        title=title,
+        url=result_url,
+        evidence=f"Search fallback: {url}",
+    )
 
