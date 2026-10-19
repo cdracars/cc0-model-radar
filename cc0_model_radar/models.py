@@ -12,6 +12,7 @@ class MakerWorldModel:
     license_url: str = ""
     published_at: str = ""
     source: str = ""
+    verification_evidence: str = ""
 
     def row(self) -> dict:
         return asdict(self)
