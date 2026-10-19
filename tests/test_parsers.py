@@ -2,7 +2,7 @@ import unittest
 
 from cc0_model_radar.makerworld import parse_models, parse_model_page
 from cc0_model_radar.models import MakerWorldModel
-from cc0_model_radar.printables import _results
+from cc0_model_radar.printables import _fallback_results, _results
 from cc0_model_radar.text import similarity
 
 
@@ -27,6 +27,10 @@ class ParserTests(unittest.TestCase):
     def test_printables_results_extract_model_links(self):
         html = '''<a href="/model/9876-example-model">Example Model</a>'''
         self.assertEqual(_results(html), [("https://www.printables.com/model/9876-example-model", "Example Model")])
+
+    def test_search_fallback_extracts_printables_links(self):
+        html = '''<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.printables.com%2Fmodel%2F9876-example">Example Model</a>'''
+        self.assertEqual(_fallback_results(html), [("https://www.printables.com/model/9876-example", "Example Model")])
 
     def test_similarity(self):
         self.assertGreaterEqual(similarity("Retroid Odin Small Caps", "Retroid/Odin Small Caps"), 0.7)
