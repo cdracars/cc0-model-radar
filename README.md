@@ -65,11 +65,16 @@ python -m cc0_model_radar --makerworld-html fixtures/makerworld-cc0.html --limit
 The matcher checks Printables by title and creator, then classifies results as:
 
 - `not_found`: no plausible Printables result was found;
+- `likely_not_found`: direct Printables access was blocked, and a public search fallback found no indexed Printables model; manual review is still required;
 - `possible_match`: a result needs human review;
 - `matched`: the result has a direct source link or a very strong title/creator match;
 - `unknown`: the source could not be queried.
 
 The report includes the evidence URLs and timestamps so a candidate can be reviewed before any re-upload decision.
+
+If Printables blocks direct access, the tool automatically uses a public
+search-results fallback for `site:printables.com/model/` queries. Search
+results are leads, not proof that a model is absent from Printables.
 
 ## Scope and safety
 
