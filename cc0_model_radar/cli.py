@@ -19,6 +19,10 @@ def main() -> None:
         help="use a real Chromium browser for MakerWorld pages (does not log in or download files)",
     )
     parser.add_argument(
+        "--browser-path",
+        help="path to an installed Chromium-based browser such as Opera",
+    )
+    parser.add_argument(
         "--include-unverified",
         action="store_true",
         help="include models that could not be verified, with the reason in the report",
@@ -27,7 +31,11 @@ def main() -> None:
     parser.add_argument("--markdown", default=None)
     args = parser.parse_args()
 
-    fetcher = BrowserFetcher(delay=args.delay) if args.browser else Fetcher(delay=args.delay)
+    fetcher = (
+        BrowserFetcher(delay=args.delay, browser_path=args.browser_path)
+        if args.browser
+        else Fetcher(delay=args.delay)
+    )
     try:
         models = discover(
             fetcher,
