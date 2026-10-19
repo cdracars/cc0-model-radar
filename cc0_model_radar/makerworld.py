@@ -41,14 +41,22 @@ def parse_models(html: str, source: str = "html") -> list[MakerWorldModel]:
 
 
 def parse_model_page(html: str, model: MakerWorldModel) -> MakerWorldModel:
-    text = _clean(BeautifulSoup(html, "html.parser").get_text(" ", strip=True))
+    soup = BeautifulSoup(html, "html.parser")
+    text = _clean(soup.get_text(" ", strip=True))
     lower = text.lower()
+    block_markers = ("please contact the site owner", "access denied", "verify you are human", "request rejected")
+    if any(marker in lower for marker in block_markers):
+        model.license_name = "unverified"
+        model.verification_evidence = "MakerWorld returned a block/challenge page"
+        return model
     if "creative commons zero" in lower or "cc0" in lower or "public domain" in lower:
         model.license_name = "CC0"
+        model.verification_evidence = "CC0 text found on model page"
     else:
         model.license_name = "unverified"
+        model.verification_evidence = "No CC0 text found on model page"
     if not model.title or model.title.startswith("Model "):
-        title = BeautifulSoup(html, "html.parser").title
+        title = soup.title
         if title:
             model.title = _clean(title.get_text()).replace(" - Free 3D Print Model - MakerWorld", "")
     creator_match = re.search(r"(?:designed by|by)\s+([A-Z][^|.]{2,80})", text)
@@ -60,7 +68,12 @@ def parse_model_page(html: str, model: MakerWorldModel) -> MakerWorldModel:
     return model
 
 
-def discover(fetcher: Fetcher, limit: int = 100, html_path: str | None = None) -> list[MakerWorldModel]:
+def discover(
+    fetcher: Fetcher,
+    limit: int = 100,
+    html_path: str | None = None,
+    include_unverified: bool = False,
+) -> list[MakerWorldModel]:
     if html_path:
         html = Path(html_path).read_text(encoding="utf-8")
         models = parse_models(html, source=html_path)
@@ -72,9 +85,10 @@ def discover(fetcher: Fetcher, limit: int = 100, html_path: str | None = None) -
         if model.source != html_path and model.url:
             try:
                 parse_model_page(fetcher.get(model.url), model)
-            except Exception:
+            except Exception as exc:
                 model.license_name = "unverified"
-        if model.license_name.lower().startswith("cc0"):
+                model.verification_evidence = str(exc)
+        if include_unverified or model.license_name.lower().startswith("cc0"):
             verified.append(model)
     return verified
 
