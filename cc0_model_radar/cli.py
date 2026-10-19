@@ -3,7 +3,7 @@ import argparse
 from .fetch import FetchError, Fetcher
 from .browser import BrowserFetcher
 from .makerworld import discover
-from .models import Candidate
+from .models import Candidate, PrintablesMatch
 from .printables import find_match
 from .report import write_csv, write_markdown
 
@@ -18,18 +18,33 @@ def main() -> None:
         action="store_true",
         help="use a real Chromium browser for MakerWorld pages (does not log in or download files)",
     )
+    parser.add_argument(
+        "--include-unverified",
+        action="store_true",
+        help="include models that could not be verified, with the reason in the report",
+    )
     parser.add_argument("--output", default="reports/cc0-candidates.csv")
     parser.add_argument("--markdown", default=None)
     args = parser.parse_args()
 
     fetcher = BrowserFetcher(delay=args.delay) if args.browser else Fetcher(delay=args.delay)
     try:
-        models = discover(fetcher, limit=args.limit, html_path=args.makerworld_html)
+        models = discover(
+            fetcher,
+            limit=args.limit,
+            html_path=args.makerworld_html,
+            include_unverified=args.include_unverified,
+        )
     except FetchError as exc:
         parser.error(str(exc))
     candidates = []
     for model in models:
-        candidates.append(Candidate(model=model, match=find_match(fetcher, model)))
+        match = (
+            find_match(fetcher, model)
+            if model.license_name.lower().startswith("cc0")
+            else PrintablesMatch(status="unknown", evidence=model.verification_evidence)
+        )
+        candidates.append(Candidate(model=model, match=match))
     write_csv(candidates, args.output)
     markdown = args.markdown or args.output.rsplit(".", 1)[0] + ".md"
     write_markdown(candidates, markdown)
