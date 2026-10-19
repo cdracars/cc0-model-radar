@@ -28,6 +28,7 @@ def write_markdown(candidates: list[Candidate], path: str) -> None:
         model = candidate.model
         match = candidate.match
         printables = f"[{match.status}]({match.url})" if match.url else match.status
-        rows.append(f"| {match.status} | [{model.title}]({model.url}) | {model.creator or '—'} | {printables} | {model.license_name} | {model.verification_evidence or '—'} |")
+        evidence = " ".join(value for value in (model.verification_evidence, match.evidence) if value) or "—"
+        rows.append(f"| {match.status} | [{model.title}]({model.url}) | {model.creator or '—'} | {printables} | {model.license_name} | {evidence} |")
     target.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
