@@ -12,7 +12,13 @@ class BrowserFetcher:
     only loads pages and returns their rendered HTML to the existing parsers.
     """
 
-    def __init__(self, delay: float = 2.0, headless: bool = True, timeout: int = 30):
+    def __init__(
+        self,
+        delay: float = 2.0,
+        headless: bool = True,
+        timeout: int = 30,
+        browser_path: str | None = None,
+    ):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
@@ -26,7 +32,10 @@ class BrowserFetcher:
         self.timeout = timeout * 1000
         self._last_request = 0.0
         self._playwright = sync_playwright().start()
-        self.browser = self._playwright.chromium.launch(headless=headless)
+        launch_options = {"headless": headless}
+        if browser_path:
+            launch_options["executable_path"] = browser_path
+        self.browser = self._playwright.chromium.launch(**launch_options)
         self.context = self.browser.new_context(
             locale="en-US",
             user_agent=(
