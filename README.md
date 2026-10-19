@@ -26,6 +26,16 @@ playwright install chromium
 python -m cc0_model_radar --browser --limit 25 --output reports/cc0-candidates.csv
 ```
 
+For troubleshooting a browser run, keep candidates that failed license
+verification instead of dropping them:
+
+```bash
+python -m cc0_model_radar --browser --include-unverified --limit 5
+```
+
+The report will show whether MakerWorld returned a block page or whether the
+page simply did not expose recognizable CC0 text.
+
 Browser mode uses a fresh, unauthenticated browser session. It loads public
 pages only, does not solve CAPTCHAs, log in, download model files, or upload
 anything. Keep the delay conservative and stop if MakerWorld presents a block
