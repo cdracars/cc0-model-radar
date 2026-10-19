@@ -29,7 +29,12 @@ class Fetcher:
             raise FetchError(f"request failed for {url}: {exc}") from exc
         finally:
             self._last_request = time.monotonic()
-        if response.status_code in (401, 402, 403, 429):
+        if response.status_code == 402:
+            raise FetchError(
+                "MakerWorld denied this automated public-page request (HTTP 402; no payment was made or requested): "
+                + url
+            )
+        if response.status_code in (401, 403, 429):
             raise FetchError(f"site denied or rate-limited request ({response.status_code}): {url}")
         response.raise_for_status()
         return response.text
