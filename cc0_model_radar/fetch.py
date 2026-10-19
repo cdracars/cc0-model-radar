@@ -34,7 +34,7 @@ class Fetcher:
                 "MakerWorld denied this automated public-page request (HTTP 402; no payment was made or requested): "
                 + url
             )
-        if response.status_code in (401, 403, 429):
+        if response.status_code in (202, 401, 403, 429):
             raise FetchError(f"site denied or rate-limited request ({response.status_code}): {url}")
         response.raise_for_status()
         return response.text

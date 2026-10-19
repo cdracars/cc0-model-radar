@@ -20,6 +20,17 @@ def write_csv(candidates: list[Candidate], path: str) -> None:
         writer.writerows(candidate.row() for candidate in candidates)
 
 
+def _cell(value: str) -> str:
+    """Make a value safe inside a Markdown table cell."""
+    return " ".join((value or "").split()).replace("|", "\\|")
+
+
+def _link(text: str, url: str) -> str:
+    text = _cell(text).replace("[", "\\[").replace("]", "\\]")
+    url = (url or "").replace(" ", "%20").replace(")", "%29")
+    return f"[{text}]({url})" if url else text
+
+
 def write_markdown(candidates: list[Candidate], path: str) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -27,8 +38,11 @@ def write_markdown(candidates: list[Candidate], path: str) -> None:
     for candidate in candidates:
         model = candidate.model
         match = candidate.match
-        printables = f"[{match.status}]({match.url})" if match.url else match.status
-        evidence = " ".join(value for value in (model.verification_evidence, match.evidence) if value) or "—"
-        rows.append(f"| {match.status} | [{model.title}]({model.url}) | {model.creator or '—'} | {printables} | {model.license_name} | {evidence} |")
+        printables = _link(match.status, match.url)
+        evidence = _cell(" ".join(value for value in (model.verification_evidence, match.evidence) if value)) or "—"
+        rows.append(
+            f"| {_cell(match.status)} | {_link(model.title, model.url)} | {_cell(model.creator) or '—'} "
+            f"| {printables} | {_cell(model.license_name)} | {evidence} |"
+        )
     target.write_text("\n".join(rows) + "\n", encoding="utf-8")
 

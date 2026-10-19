@@ -12,6 +12,35 @@ from .text import similarity
 BASE = "https://www.printables.com"
 SEARCH_FALLBACK_BASE = "https://html.duckduckgo.com/html/"
 
+# Phrases seen on bot-challenge / interstitial pages. If a page contains one of
+# these and no parseable results, it must never be read as "no results".
+_BLOCK_MARKERS = (
+    "unfortunately, bots use duckduckgo too",
+    "please complete the following challenge",
+    "verify you are human",
+    "just a moment",
+    "checking your browser",
+    "access denied",
+    "request rejected",
+    "enable javascript and cookies",
+)
+
+
+def _looks_blocked(page: str) -> bool:
+    lower = (page or "").lower()
+    return any(marker in lower for marker in _BLOCK_MARKERS) or 'id="challenge-form"' in lower
+
+
+def _fallback_says_no_results(page: str) -> bool:
+    """True only when DuckDuckGo explicitly reports zero results."""
+    soup = BeautifulSoup(page, "html.parser")
+    return soup.select_one(".no-results") is not None
+
+
+def _query_title(title: str) -> str:
+    # A double quote inside the title would terminate the exact-phrase query.
+    return " ".join(title.replace('"', " ").split())
+
 
 def _results(html: str) -> list[tuple[str, str]]:
     soup = BeautifulSoup(html, "html.parser")
@@ -41,10 +70,15 @@ def find_match(fetcher: Fetcher, model: MakerWorldModel) -> PrintablesMatch:
         if fallback.status != "unknown":
             fallback.evidence = f"Direct Printables lookup failed ({exc}); {fallback.evidence}"
             return fallback
-        return PrintablesMatch(status="unknown", evidence=str(exc))
+        return PrintablesMatch(status="unknown", evidence=f"Direct Printables lookup failed ({exc}); {fallback.evidence}")
     candidates = _results(html)
     if not candidates:
-        return PrintablesMatch(status="not_found", confidence="medium", evidence=url)
+        # An empty page is not proof of absence: Printables search is rendered
+        # client-side and may also serve a challenge page with HTTP 200.
+        reason = "challenge page" if _looks_blocked(html) else "no parseable results"
+        fallback = find_search_fallback(fetcher, model)
+        fallback.evidence = f"Direct Printables lookup inconclusive ({reason}: {url}); {fallback.evidence}"
+        return fallback
     scored = sorted(((similarity(model.title, title), title, result_url) for result_url, title in candidates), reverse=True)
     score, title, result_url = scored[0]
     if score >= 0.85:
@@ -76,7 +110,7 @@ def _fallback_results(page: str) -> list[tuple[str, str]]:
 
 
 def find_search_fallback(fetcher: Fetcher, model: MakerWorldModel) -> PrintablesMatch:
-    query = quote(f'site:printables.com/model/ "{model.title}"')
+    query = quote(f'site:printables.com/model/ "{_query_title(model.title)}"')
     url = f"{SEARCH_FALLBACK_BASE}?q={query}"
     try:
         page = fetcher.get(url)
@@ -84,6 +118,14 @@ def find_search_fallback(fetcher: Fetcher, model: MakerWorldModel) -> Printables
         return PrintablesMatch(status="unknown", evidence=f"search fallback failed: {exc}")
     candidates = _fallback_results(page)
     if not candidates:
+        if _looks_blocked(page) or not _fallback_says_no_results(page):
+            # Without an explicit "no results" marker we cannot tell an empty
+            # search from a blocked or changed page, so do not guess.
+            reason = "challenge page" if _looks_blocked(page) else "unrecognized results page"
+            return PrintablesMatch(
+                status="unknown",
+                evidence=f"Search fallback inconclusive ({reason}); manual review required: {url}",
+            )
         return PrintablesMatch(
             status="likely_not_found",
             confidence="low",

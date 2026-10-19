@@ -53,7 +53,7 @@ class BrowserFetcher:
         try:
             response = self.page.goto(url, wait_until="domcontentloaded", timeout=self.timeout)
             self.page.wait_for_timeout(750)
-            if response is not None and response.status in (401, 402, 403, 429):
+            if response is not None and response.status in (202, 401, 402, 403, 429):
                 raise FetchError(f"browser request denied or rate-limited ({response.status}): {url}")
             return self.page.content()
         except FetchError:

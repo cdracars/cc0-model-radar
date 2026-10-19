@@ -43,28 +43,31 @@ def main() -> None:
     )
     printables_fetcher = makerworld_fetcher if args.browser else Fetcher(delay=args.delay)
     try:
-        models = discover(
-            makerworld_fetcher,
-            limit=args.limit,
-            html_path=args.makerworld_html,
-            include_unverified=args.include_unverified,
-        )
-    except FetchError as exc:
-        parser.error(str(exc))
-    candidates = []
-    for model in models:
-        match = (
-            find_match(printables_fetcher, model)
-            if model.license_name.lower().startswith("cc0")
-            else PrintablesMatch(status="unknown", evidence=model.verification_evidence)
-        )
-        candidates.append(Candidate(model=model, match=match))
-    write_csv(candidates, args.output)
-    markdown = args.markdown or args.output.rsplit(".", 1)[0] + ".md"
-    write_markdown(candidates, markdown)
-    print(f"Wrote {len(candidates)} candidates to {args.output}")
-    print(f"Wrote review report to {markdown}")
-    close = getattr(makerworld_fetcher, "close", None)
-    if close:
-        close()
+        try:
+            models = discover(
+                makerworld_fetcher,
+                limit=args.limit,
+                html_path=args.makerworld_html,
+                include_unverified=args.include_unverified,
+            )
+        except FetchError as exc:
+            parser.error(str(exc))
+        candidates = []
+        for model in models:
+            match = (
+                find_match(printables_fetcher, model)
+                if model.license_name.lower().startswith("cc0")
+                else PrintablesMatch(status="unknown", evidence=model.verification_evidence)
+            )
+            candidates.append(Candidate(model=model, match=match))
+        write_csv(candidates, args.output)
+        markdown = args.markdown or args.output.rsplit(".", 1)[0] + ".md"
+        write_markdown(candidates, markdown)
+        print(f"Wrote {len(candidates)} candidates to {args.output}")
+        print(f"Wrote review report to {markdown}")
+    finally:
+        # Always shut the browser down, including after errors or Ctrl-C.
+        close = getattr(makerworld_fetcher, "close", None)
+        if close:
+            close()
 
